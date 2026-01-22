@@ -1,0 +1,59 @@
+---
+title: "final_hw_part1"
+author: "Rudraksh Sharma"
+date: "2026-01-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rio) # Load the packages for future use
+library(dplyr) # Load the packages for future use
+library(readr) # Load the packages for future use
+library(ggplot2) # Load the packages for future use
+library(tidyr) # Load the packages for future use
+```
+
+```{r}
+urls <- paste0("https://github.com/FundamentalsRudraksh/final_hw_part1/raw/refs/heads/main/fsi-", 2006:2023, ".xlsx") # Load the different urls from github. Used paste0 to combine the different years in the url
+names(urls) <- paste0("fsi", 2006:2023) # Assigns names to each url like fsi2006 etc
+list2env(lapply(urls, rio::import), .GlobalEnv) # Creates separate data frames for different url
+```
+
+```{r}
+class(fsi2023$Year) # Shows that the Year column in fsi2023 is numeric and not integer
+
+fix_one <- function(x){ # Helper function
+  names(x) <- gsub("[ :]+", "_", names(x)) # Renames the column by replacing : with _
+  x$Year <- as.integer(readr::parse_number(as.character(x$Year))) # Converts Year column to integer
+  x$Rank <- as.integer(readr::parse_number(as.character(x$Rank))) # Removes any extra rank from the Rank column and also converts it into integer
+  x}
+
+fsi_all <- dplyr::bind_rows(lapply(names(urls), function(n) fix_one(get(n)))) # Applies the helper function and appends all the files vertically 
+
+class(fsi_all$Year) # Shows that the Year column is integer after reformatting
+class(fsi_all$Rank) # Shows that the Rank column is integer after reformatting
+
+keep <- c("Country","Year","Rank","Total","C1_Security_Apparatus","C2_Factionalized_Elites","C3_Group_Grievance","E1_Economy","E2_Economic_Inequality","E3_Human_Flight_and_Brain_Drain","P1_State_Legitimacy","P2_Public_Services","P3_Human_Rights","S1_Demographic_Pressures","S2_Refugees_and_IDPs","X1_External_Intervention") # Define the set of columns to be used further
+
+fsi_all <- dplyr::select(fsi_all, dplyr::any_of(keep)) # Keeps only the selected columns from keep and removes all the other columns
+```
+
+```{r}
+ggplot(fsi_all, aes(x = factor(Year), y = Total)) + 
+  geom_boxplot() + 
+  labs(title="FSI Total score distribution by year", x="Year", y="Total score") # Creates boxplot of Total FSI scores for each year using ggplot and adds descriptive title and axis names
+```
+
+```{r}
+h <- fsi_all %>% filter(Year %in% c(2013, 2023)) %>% # Keep only 2 years 2013 and 2023
+  pivot_longer(c(C1_Security_Apparatus, C2_Factionalized_Elites, C3_Group_Grievance),   names_to="Variable", values_to="Value") # Choose only these 3 columns and change them to the long format for plotting
+
+ggplot(h, aes(x = Value)) + geom_histogram(bins = 20) + # Creates histogram which shows distribution of score across countries
+  facet_grid(Variable ~ Year) + # Separates histogram by the three components and the two years
+  labs(title="FSI Component distributions: 2013 vs 2023", x="Score", y="Number of countries") # Add descriptive title and axis description
+```
+
